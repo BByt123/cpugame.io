@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>植物大戰殭屍 - 每5關解鎖等級上限版</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@500;700;900&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            background-color: #0b0f19;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        .card-active {
+            border-color: #f59e0b !important;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+            transform: scale(1.05);
+        }
+        .shovel-active {
+            background-color: #d97706 !important;
+            box-shadow: 0 0 15px rgba(217, 119, 6, 0.6);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between font-sans">
+
+    <!-- 頂部 UI 控制欄 -->
+    <header class="bg-slate-900/95 border-b border-slate-800 p-2 sm:p-3 sticky top-0 z-40 backdrop-blur shadow-xl">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            
+            <!-- 太陽與遊戲資訊 -->
+            <div class="flex items-center gap-3">
+                <div id="sun-box" class="flex items-center gap-2 bg-amber-950/90 border-2 border-amber-500/80 px-4 py-1.5 rounded-2xl shadow-inner transition-transform duration-200">
+                    <div class="w-8 h-8 rounded-full bg-amber-400 flex items-center justify-center text-amber-950 shadow-md animate-pulse">
+                        <i data-lucide="sun" class="w-6 h-6 fill-amber-300"></i>
+                    </div>
+                    <span id="sun-count" class="text-2xl font-black text-amber-300 min-w-[65px]">250</span>
+                </div>
+
+                <div class="hidden md:block">
+                    <h1 class="text-xl font-extrabold text-emerald-400 tracking-wide flex items-center gap-1.5">
+                        <i data-lucide="sprout" class="w-5 h-5 text-emerald-400"></i>
+                        植物大戰殭屍
+                    </h1>
+                    <p class="text-xs text-slate-400">每 5 關植物等級上限 +1，第 5 關起怪物暴增！</p>
+                </div>
+            </div>
+
+            <!-- 波次進度與等級上限顯示 -->
+            <div class="flex-1 max-w-xs sm:max-w-md mx-2">
+                <div class="flex justify-between text-xs font-bold mb-1">
+                    <span id="wave-text" class="text-emerald-400 flex items-center gap-1">
+                        <i data-lucide="flag" class="w-3.5 h-3.5"></i> 第 1 波殭屍
+                    </span>
+                    <span id="max-level-text" class="text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/40">
+                        ⭐ 當前上限: Lv.1
+                    </span>
+                    <span id="zombie-left-text" class="text-slate-400">剩餘殭屍: 0</span>
+                </div>
+                <div class="w-full h-3 bg-slate-950 rounded-full border border-slate-800 overflow-hidden relative shadow-inner">
+                    <div id="wave-progress" class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-500 transition-all duration-300 w-0"></div>
+                </div>
+            </div>
+
+            <!-- 功能控制按鈕 -->
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <!-- 新增：規則說明按鈕 -->
+                <button id="btn-rules" title="規則說明" class="p-2 bg-indigo-900/80 hover:bg-indigo-800 border border-indigo-600/80 rounded-xl transition active:scale-95 text-indigo-200 flex items-center gap-1 shadow">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                    <span class="text-xs font-bold hidden sm:inline">規則說明</span>
+                </button>
+
+                <button id="btn-shovel" title="剷除植物" class="p-2 bg-amber-900/80 hover:bg-amber-800 border-2 border-amber-600/80 rounded-xl transition active:scale-95 text-amber-200 flex items-center gap-1 shadow">
+                    <i data-lucide="shovel" class="w-5 h-5"></i>
+                    <span class="text-xs font-bold hidden sm:inline">剷子</span>
+                </button>
+
+                <button id="btn-speed" title="加速 (1x / 2x)" class="px-2.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl font-bold text-xs transition active:scale-95 text-amber-300 flex items-center gap-1 shadow">
+                    <i data-lucide="zap" class="w-4 h-4"></i>
+                    <span id="speed-label">1x</span>
+                </button>
+
+                <button id="btn-pause" title="暫停遊戲" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition active:scale-95 text-slate-200 shadow">
+                    <i id="pause-icon" data-lucide="pause" class="w-5 h-5"></i>
+                </button>
+
+                <button id="btn-sound" title="切換音效" class="p-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition active:scale-95 text-slate-200 shadow">
+                    <i id="sound-icon" data-lucide="volume-2" class="w-5 h-5"></i>
+                </button>
+
+                <button id="btn-restart" title="重新開始" class="p-2 bg-emerald-700 hover:bg-emerald-600 border border-emerald-500 rounded-xl transition active:scale-95 text-white shadow">
+                    <i data-lucide="rotate-ccw" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要戰場與選卡區 -->
+    <main class="flex-1 flex flex-col items-center justify-center p-2 sm:p-4 max-w-7xl mx-auto w-full select-none">
+        
+        <!-- 植物選卡欄 -->
+        <div class="w-full bg-slate-900/90 border border-slate-800 rounded-2xl p-2 mb-3 shadow-xl flex items-center gap-2 overflow-x-auto" id="plant-bar">
+            <!-- 由 JS 動態生成 -->
+        </div>
+
+        <!-- HTML5 Canvas 視域區 -->
+        <div class="relative w-full flex justify-center items-center">
+            <canvas id="gameCanvas" class="bg-slate-900 border-4 border-amber-950 rounded-2xl shadow-2xl cursor-pointer max-w-full h-auto"></canvas>
+            
+            <!-- 大波殭屍 / Boss 來襲提示 -->
+            <div id="huge-wave-banner" class="absolute inset-0 bg-red-950/80 backdrop-blur-xs flex items-center justify-center z-30 opacity-0 pointer-events-none transition-opacity duration-300">
+                <div class="text-center transform -rotate-2">
+                    <h2 id="banner-text" class="text-3xl sm:text-5xl font-black text-red-500 tracking-wider drop-shadow-[0_5px_5px_rgba(0,0,0,0.9)] animate-bounce">
+                        ⚠️ 一大波殭屍正在接近！ ⚠️
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 頁腳資訊 -->
+    <footer class="bg-slate-900/80 border-t border-slate-800 p-2 text-center text-xs text-slate-400">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-2 px-4">
+            <div>
+                <span>擊殺得分: <strong id="score-count" class="text-amber-400 text-sm">0</strong></span>
+                <span class="ml-4">最高紀錄: <strong id="high-score-count" class="text-emerald-400 text-sm">0</strong></span>
+            </div>
+            <div>
+                💡 動態限制：<strong>每過 5 關，植物等級上限 +1</strong>；第 5 關起每關怪物增加 <strong>+2~5 隻</strong>！
+            </div>
+        </div>
+    </footer>
+
+    <!-- 對話盒 Modal (遊戲狀態提示) -->
+    <div id="game-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div class="bg-slate-900 border-2 border-emerald-500/50 rounded-3xl p-6 max-w-md w-full shadow-2xl text-center relative overflow-hidden">
+            <div class="w-16 h-16 mx-auto mb-3 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center shadow-inner">
+                <i data-lucide="sun" class="w-10 h-10 fill-amber-400"></i>
+            </div>
+
+            <h2 id="modal-title" class="text-3xl font-extrabold text-white mb-2">植物大戰殭屍</h2>
+            <p id="modal-desc" class="text-sm text-slate-300 mb-6 leading-relaxed">
+                【動態上限】**每過 5 關，植物可升級的最高星級上限 +1**！<br>
+                【關卡難度】從 **第 5 關** 起，每關怪物數量隨機額外增加 **2~5 隻**！
+            </p>
+
+            <button id="btn-modal-action" class="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-lg rounded-2xl shadow-lg transition active:scale-95 flex items-center justify-center gap-2">
+                <i data-lucide="play" class="w-5 h-5 fill-white"></i>
+                <span id="modal-btn-text">開始遊戲</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 新增：規則說明彈窗 Modal -->
+    <div id="rules-modal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 hidden">
+        <div class="bg-slate-900 border-2 border-indigo-500/50 rounded-3xl p-6 max-w-lg w-full shadow-2xl text-left relative overflow-hidden max-h-[85vh] flex flex-col">
+            <div class="flex justify-between items-center pb-3 border-b border-slate-800 mb-4">
+                <h3 class="text-xl font-extrabold text-indigo-400 flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-6 h-6"></i>
+                    升級詳情與戰鬥規則
+                </h3>
+                <button id="btn-close-rules" class="text-slate-400 hover:text-white p-1 rounded-lg">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <div class="overflow-y-auto space-y-4 pr-1 text-sm text-slate-300 leading-relaxed flex-1">
+                <div class="bg-indigo-950/40 p-3 rounded-2xl border border-indigo-500/30">
+                    <h4 class="font-bold text-amber-400 mb-1 flex items-center gap-1">
+                        <i data-lucide="star" class="w-4 h-4"></i> 動態植物升級機制
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-xs text-slate-300">
+                        <li><strong>等級上限解鎖：</strong>第 1~4 關上限為 Lv.1；第 5~9 關上限為 Lv.2 ... **每過 5 關上限 +1**。</li>
+                        <li><strong>重疊升級：</strong>將相同植物種植在已有植物上可消耗陽光進行升級。</li>
+                        <li><strong>屬性倍率：</strong>每次升級，植物的攻擊力與血量上限提升 **1.5 倍** 並立即補滿血量。</li>
+                        <li><strong>向日葵加速：</strong>等級越高，生產陽光的間隔時間越短。</li>
+                        <li><strong>限制保護：</strong>達到關卡上限時，嘗試升級不會消耗陽光與觸發冷卻。</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
+                    <h4 class="font-bold text-emerald-400 mb-1 flex items-center gap-1">
+                        <i data-lucide="swords" class="w-4 h-4"></i> 關卡與怪物暴增規則
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-xs text-slate-300">
+                        <li><strong>怪物數量增加：</strong>從 **第 5 關** 起，每關怪獸數量額外增加 **2~5 隻**。</li>
+                        <li><strong>Boss 來襲：</strong>每 5 關（第 5, 10, 15...關）會有 **巨型 Boss 殭屍** 降臨，佔用雙軌道且擁有極高血量。</li>
+                        <li><strong>防禦屬性：</strong>隨關卡推進，殭屍的血量、移動速度與防禦力會逐漸提升。</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-800/60 p-3 rounded-2xl border border-slate-700">
+                    <h4 class="font-bold text-teal-400 mb-1 flex items-center gap-1">
+                        <i data-lucide="gamepad-2" class="w-4 h-4"></i> 操作指引
+                    </h4>
+                    <ul class="list-disc list-inside space-y-1 text-xs text-slate-300">
+                        <li>點擊上方卡片選擇植物，再點擊草地進行種植。</li>
+                        <li>點擊「剷子」後再點擊植物可將其剷除。</li>
+                        <li>點擊掉落或向日葵產出的陽光可手動收集（逾時自動收集）。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-slate-800 mt-2">
+                <button id="btn-close-rules-bottom" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl transition">
+                    知道了
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio API 音效生成器
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.enabled = true;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContext) this.ctx = new AudioContext();
+                }
+            }
+
+            play(type) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                switch (type) {
+                    case 'sun':
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(523.25, now);
+                        osc.frequency.exponentialRampToValueAtTime(880, now + 0.18);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.18);
+                        osc.start(now);
+                        osc.stop(now + 0.18);
+                        break;
+                    case 'plant':
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(180, now);
+                        osc.frequency.exponentialRampToValueAtTime(320, now + 0.12);
+                        gain.gain.setValueAtTime(0.35, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.12);
+                        osc.start(now);
+                        osc.stop(now + 0.12);
+                        break;
+                    case 'upgrade':
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.exponentialRampToValueAtTime(880, now + 0.25);
+                        gain.gain.setValueAtTime(0.4, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+                        osc.start(now);
+                        osc.stop(now + 0.25);
+                        break;
+                    case 'max':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(300, now);
+                        osc.frequency.exponentialRampToValueAtTime(150, now + 0.15);
+                        gain.gain.setValueAtTime(0.3, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                        osc.start(now);
+                        osc.stop(now + 0.15);
+                        break;
+                    case 'shoot':
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(400, now);
+                        osc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
+                        gain.gain.setValueAtTime(0.12, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                        osc.start(now);
+                        osc.stop(now + 0.08);
+                        break;
+                    case 'hit':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(150, now);
+                        osc.frequency.exponentialRampToValueAtTime(60, now + 0.06);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.06);
+                        osc.start(now);
+                        osc.stop(now + 0.06);
+                        break;
+                    case 'boom':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(110, now);
+                        osc.frequency.exponentialRampToValueAtTime(20, now + 0.45);
+                        gain.gain.setValueAtTime(0.6, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.45);
+                        osc.start(now);
+                        osc.stop(now + 0.45);
+                        break;
+                    case 'win':
+                        [261.63, 329.63, 392.00, 523.25, 659.25].forEach((freq, idx) => {
+                            const subOsc = this.ctx.createOscillator();
+                            const subGain = this.ctx.createGain();
+                            subOsc.type = 'sine';
+                            subOsc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                            subGain.gain.setValueAtTime(0.2, now + idx * 0.1);
+                            subGain.gain.linearRampToValueAtTime(0.01, now + idx * 0.1 + 0.22);
+                            subOsc.connect(subGain);
+                            subGain.connect(this.ctx.destination);
+                            subOsc.start(now + idx * 0.1);
+                            subOsc.stop(now + idx * 0.1 + 0.22);
+                        });
+                        break;
+                    case 'lose':
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(220, now);
+                        osc.frequency.exponentialRampToValueAtTime(40, now + 0.7);
+                        gain.gain.setValueAtTime(0.4, now);
+                        gain.gain.linearRampToValueAtTime(0.01, now + 0.7);
+                        osc.start(now);
+                        osc.stop(now + 0.7);
+                        break;
+                }
+            }
+        }
+
+        const sound = new SoundManager();
+
+        const ROWS = 5;
+        const COLS = 9;
+        const CANVAS_WIDTH = 900;
+        const CANVAS_HEIGHT = 500;
+        const CELL_WIDTH = CANVAS_WIDTH / COLS;   // 100px
+        const CELL_HEIGHT = CANVAS_HEIGHT / ROWS; // 100px
+
+        const PLANT_TYPES = {
+            sunflower: {
+                name: '向日葵',
+                cost: 50,
+                hp: 150,
+                cooldown: 5,
+                color: '#f59e0b',
+                desc: '重疊縮短產光時間'
+            },
+            peashooter: {
+                name: '豌豆射手',
+                cost: 100,
+                hp: 180,
+                cooldown: 6,
+                color: '#10b981',
+                desc: '重疊增強攻擊與血量'
+            },
+            wallnut: {
+                name: '堅果牆',
+                cost: 50,
+                hp: 800,
+                cooldown: 12,
+                color: '#d97706',
+                desc: '重疊大幅提升血量'
+            },
+            cherrybomb: {
+                name: '櫻桃炸彈',
+                cost: 150,
+                hp: 300,
+                cooldown: 18,
+                color: '#ef4444',
+                desc: '種植後爆炸毀務 3x3 區域'
+            },
+            repeater: {
+                name: '雙發射手',
+                cost: 200,
+                hp: 180,
+                cooldown: 8,
+                color: '#0d9488',
+                desc: '重疊提升雙發威力'
+            }
+        };
+
+        const ZOMBIE_TYPES = {
+            regular: { name: '普通殭屍', hp: 140, speed: 18, atk: 20, score: 10, color: '#64748b', radius: 26 },
+            conehead: { name: '路障殭屍', hp: 300, speed: 16, atk: 20, score: 25, color: '#d97706', hat: '路障', radius: 26 },
+            buckethead: { name: '鐵桶殭屍', hp: 550, speed: 14, atk: 22, score: 50, color: '#94a3b8', hat: '鐵桶', radius: 26 },
+            fast: { name: '報紙殭屍', hp: 180, speed: 32, atk: 25, score: 35, color: '#78716c', hat: '報紙', radius: 26 },
+            boss: { name: '巨型 Boss 殭屍', hp: 2100, speed: 10, atk: 60, score: 300, color: '#450a0a', isBoss: true, radius: 52 }
+        };
+
+        class PVZCanvasGame {
+            constructor() {
+                this.canvas = document.getElementById('gameCanvas');
+                this.ctx = this.canvas.getContext('2d');
+                
+                this.canvas.width = CANVAS_WIDTH;
+                this.canvas.height = CANVAS_HEIGHT;
+
+                this.sun = 250;
+                this.score = 0;
+                this.highScore = parseInt(localStorage.getItem('pvz-canvas-high-score')) || 0;
+                this.speedMultiplier = 1;
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.gameStarted = false;
+
+                this.selectedPlant = null;
+                this.isShovelActive = false;
+
+                this.plants = [];
+                this.zombies = [];
+                this.peas = [];
+                this.suns = [];
+                this.particles = [];
+                this.explosions = [];
+
+                this.cooldowns = {
+                    sunflower: 0,
+                    peashooter: 0,
+                    wallnut: 0,
+                    cherrybomb: 0,
+                    repeater: 0
+                };
+
+                this.currentWave = 1;
+                this.totalWaves = 50;
+                this.zombiesToSpawnInWave = 0;
+                this.zombiesSpawnedInWave = 0;
+                this.waveSpawnTimer = 0;
+                this.bossSpawnedThisWave = false;
+
+                this.sunNaturalTimer = 0;
+                this.lastTime = performance.now();
+
+                this.initDOM();
+                this.bindEvents();
+            }
+
+            // 計算當前關卡允許的最高星級上限（每 5 關 +1）
+            getMaxAllowedLevel() {
+                return Math.floor((this.currentWave - 1) / 5) + 1;
+            }
+
+            initDOM() {
+                this.sunCountEl = document.getElementById('sun-count');
+                this.sunBoxEl = document.getElementById('sun-box');
+                this.plantBarEl = document.getElementById('plant-bar');
+                this.scoreEl = document.getElementById('score-count');
+                this.highScoreEl = document.getElementById('high-score-count');
+                this.waveTextEl = document.getElementById('wave-text');
+                this.maxLevelTextEl = document.getElementById('max-level-text');
+                this.zombieLeftEl = document.getElementById('zombie-left-text');
+                this.waveProgressEl = document.getElementById('wave-progress');
+                this.hugeWaveBanner = document.getElementById('huge-wave-banner');
+                this.bannerText = document.getElementById('banner-text');
+
+                this.modal = document.getElementById('game-modal');
+                this.modalTitle = document.getElementById('modal-title');
+                this.modalDesc = document.getElementById('modal-desc');
+                this.modalBtnText = document.getElementById('modal-btn-text');
+
+                this.rulesModal = document.getElementById('rules-modal');
+                this.btnRules = document.getElementById('btn-rules');
+
+                this.btnShovel = document.getElementById('btn-shovel');
+                this.btnSpeed = document.getElementById('btn-speed');
+                this.btnPause = document.getElementById('btn-pause');
+
+                this.highScoreEl.textContent = this.highScore;
+
+                this.renderPlantBar();
+            }
+
+            renderPlantBar() {
+                this.plantBarEl.innerHTML = '';
+                Object.keys(PLANT_TYPES).forEach(type => {
+                    const info = PLANT_TYPES[type];
+                    const card = document.createElement('button');
+                    card.id = `card-${type}`;
+                    card.className = `card-item relative flex-shrink-0 w-24 sm:w-28 p-1.5 rounded-xl border-2 transition flex flex-col items-center text-left bg-slate-900 border-slate-700 hover:border-amber-400 disabled:opacity-50 disabled:pointer-events-none`;
+                    
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between w-full mb-1">
+                            <span class="text-xs font-bold text-slate-200 truncate">${info.name}</span>
+                            <span class="text-xs font-black text-amber-300 flex items-center">☀️${info.cost}</span>
+                        </div>
+                        <div class="w-full h-10 rounded-lg flex items-center justify-center text-white mb-1 shadow-inner relative overflow-hidden" style="background-color: ${info.color}">
+                            <i data-lucide="${type === 'sunflower' ? 'sun' : type === 'wallnut' ? 'shield' : type === 'cherrybomb' ? 'bomb' : 'circle-dot'}" class="w-6 h-6"></i>
+                            <div id="cd-overlay-${type}" class="absolute inset-0 bg-slate-950/80 flex items-center justify-center text-xs font-bold text-amber-300 opacity-0 transition-all"></div>
+                        </div>
+                        <span class="text-[10px] text-slate-400 truncate w-full text-center">${info.desc}</span>
+                    `;
+
+                    card.addEventListener('click', () => this.selectPlant(type));
+                    this.plantBarEl.appendChild(card);
+                });
+
+                if (window.lucide) lucide.createIcons();
+            }
+
+            bindEvents() {
+                const handleCanvasClick = (e) => {
+                    if (!this.gameStarted || this.isPaused || this.isGameOver) return;
+
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = CANVAS_WIDTH / rect.width;
+                    const scaleY = CANVAS_HEIGHT / rect.height;
+
+                    const mouseX = (e.clientX - rect.left) * scaleX;
+                    const mouseY = (e.clientY - rect.top) * scaleY;
+
+                    for (let i = this.suns.length - 1; i >= 0; i--) {
+                        const s = this.suns[i];
+                        if (s.isCollecting) continue;
+                        const dist = Math.hypot(mouseX - s.x, mouseY - s.y);
+                        if (dist <= 36) {
+                            this.collectSun(s);
+                            return;
+                        }
+                    }
+
+                    const col = Math.floor(mouseX / CELL_WIDTH);
+                    const row = Math.floor(mouseY / CELL_HEIGHT);
+
+                    if (row >= 0 && row < ROWS && col >= 0 && col < COLS) {
+                        this.handleGridClick(row, col);
+                    }
+                };
+
+                this.canvas.addEventListener('click', handleCanvasClick);
+
+                // 規則說明 Modal 控制綁定
+                this.btnRules.addEventListener('click', () => {
+                    this.rulesModal.classList.remove('hidden');
+                });
+
+                document.getElementById('btn-close-rules').addEventListener('click', () => {
+                    this.rulesModal.classList.add('hidden');
+                });
+
+                document.getElementById('btn-close-rules-bottom').addEventListener('click', () => {
+                    this.rulesModal.classList.add('hidden');
+                });
+
+                this.btnShovel.addEventListener('click', () => {
+                    this.isShovelActive = !this.isShovelActive;
+                    this.selectedPlant = null;
+                    this.updateUI();
+                });
+
+                this.btnSpeed.addEventListener('click', () => {
+                    this.speedMultiplier = this.speedMultiplier === 1 ? 2 : 1;
+                    document.getElementById('speed-label').textContent = `${this.speedMultiplier}x`;
+                });
+
+                this.btnPause.addEventListener('click', () => {
+                    if (!this.gameStarted || this.isGameOver) return;
+                    this.isPaused = !this.isPaused;
+                    document.getElementById('pause-icon').setAttribute('data-lucide', this.isPaused ? 'play' : 'pause');
+                    if (window.lucide) lucide.createIcons();
+
+                    if (this.isPaused) {
+                        this.showModal('遊戲暫停', '戰鬥已暫停，點擊下方按鈕繼續戰鬥。', '繼續遊戲');
+                    } else {
+                        this.hideModal();
+                    }
+                });
+
+                document.getElementById('btn-sound').addEventListener('click', () => {
+                    sound.enabled = !sound.enabled;
+                    document.getElementById('sound-icon').setAttribute('data-lucide', sound.enabled ? 'volume-2' : 'volume-x');
+                    if (window.lucide) lucide.createIcons();
+                });
+
+                document.getElementById('btn-restart').addEventListener('click', () => {
+                    this.startNewGame();
+                });
+
+                document.getElementById('btn-modal-action').addEventListener('click', () => {
+                    if (!this.gameStarted || this.isGameOver) {
+                        this.startNewGame();
+                    } else if (this.isPaused) {
+                        this.isPaused = false;
+                        document.getElementById('pause-icon').setAttribute('data-lucide', 'pause');
+                        if (window.lucide) lucide.createIcons();
+                        this.hideModal();
+                    }
+                });
+            }
+
+            selectPlant(type) {
+                if (this.cooldowns[type] > 0 || this.sun < PLANT_TYPES[type].cost) return;
+                this.selectedPlant = type;
+                this.isShovelActive = false;
+                this.updateUI();
+            }
+
+            handleGridClick(r, c) {
+                const existingIdx = this.plants.findIndex(p => p.row === r && p.col === c);
+
+                if (this.isShovelActive) {
+                    if (existingIdx !== -1) {
+                        this.plants.splice(existingIdx, 1);
+                        sound.play('plant');
+                        this.isShovelActive = false;
+                        this.updateUI();
+                    }
+                    return;
+                }
+
+                if (this.selectedPlant) {
+                    const info = PLANT_TYPES[this.selectedPlant];
+                    if (this.sun < info.cost) return;
+
+                    // 同款植物重疊升級機制
+                    if (existingIdx !== -1) {
+                        const existingPlant = this.plants[existingIdx];
+                        if (existingPlant.type === this.selectedPlant) {
+                            
+                            const maxLevel = this.getMaxAllowedLevel();
+
+                            // 檢查是否達到【每 5 關計算一次】的動態星級上限
+                            if (existingPlant.level >= maxLevel) {
+                                sound.play('max');
+                                this.particles.push({
+                                    x: (c + 0.5) * CELL_WIDTH,
+                                    y: (r + 0.5) * CELL_HEIGHT,
+                                    text: `第 ${this.currentWave} 關上限 Lv.${maxLevel}！`,
+                                    color: '#ef4444',
+                                    opacity: 1,
+                                    vy: -35
+                                });
+                                this.selectedPlant = null;
+                                this.updateUI();
+                                return;
+                            }
+
+                            // 扣除陽光並進入冷卻
+                            this.sun -= info.cost;
+                            this.cooldowns[this.selectedPlant] = info.cooldown;
+
+                            // 等級 +1，基礎屬性乘以 1.5
+                            existingPlant.level += 1;
+                            existingPlant.multiplier *= 1.5;
+
+                            // 血量與上限提升 1.5 倍並補滿
+                            existingPlant.maxHp = Math.round(info.hp * existingPlant.multiplier);
+                            existingPlant.hp = existingPlant.maxHp;
+
+                            // 特效與音效
+                            sound.play('upgrade');
+                            this.particles.push({
+                                x: (c + 0.5) * CELL_WIDTH,
+                                y: (r + 0.5) * CELL_HEIGHT,
+                                text: `⭐ Lv.${existingPlant.level} UP! (x1.5)`,
+                                color: '#f59e0b',
+                                opacity: 1,
+                                vy: -35
+                            });
+
+                            this.selectedPlant = null;
+                            this.updateUI();
+                            return;
+                        } else {
+                            // 格子上已有不同款植物
+                            return;
+                        }
+                    }
+
+                    // 空格上新建植物
+                    this.sun -= info.cost;
+                    this.cooldowns[this.selectedPlant] = info.cooldown;
+
+                    const newPlant = {
+                        id: Date.now() + Math.random(),
+                        type: this.selectedPlant,
+                        row: r,
+                        col: c,
+                        level: 1,
+                        multiplier: 1.0,
+                        hp: info.hp,
+                        maxHp: info.hp,
+                        timer: 0,
+                        sunGlowTimer: 0
+                    };
+
+                    this.plants.push(newPlant);
+                    sound.play('plant');
+
+                    if (this.selectedPlant === 'cherrybomb') {
+                        setTimeout(() => this.triggerCherryBomb(newPlant), 600);
+                    }
+
+                    this.selectedPlant = null;
+                    this.updateUI();
+                }
+            }
+
+            triggerCherryBomb(plant) {
+                sound.play('boom');
+                const centerX = (plant.col + 0.5) * CELL_WIDTH;
+                const centerY = (plant.row + 0.5) * CELL_HEIGHT;
+
+                this.explosions.push({
+                    x: centerX,
+                    y: centerY,
+                    radius: 20,
+                    maxRadius: CELL_WIDTH * 1.5,
+                    opacity: 1
+                });
+
+                this.zombies.forEach(z => {
+                    const zCol = Math.floor(z.x / CELL_WIDTH);
+                    const isRowAffected = z.isBoss ? 
+                        (Math.abs(z.row - plant.row) <= 1 || Math.abs(z.row + 1 - plant.row) <= 1) :
+                        Math.abs(z.row - plant.row) <= 1;
+
+                    if (isRowAffected && Math.abs(zCol - plant.col) <= 1) {
+                        const rawDamage = 900 * plant.multiplier;
+                        const actualDamage = Math.max(100, rawDamage - z.def);
+                        z.hp -= actualDamage;
+                    }
+                });
+
+                this.plants = this.plants.filter(p => p.id !== plant.id);
+            }
+
+            startNewGame() {
+                this.sun = 250;
+                this.score = 0;
+                this.isPaused = false;
+                this.isGameOver = false;
+                this.gameStarted = true;
+
+                this.plants = [];
+                this.zombies = [];
+                this.peas = [];
+                this.suns = [];
+                this.particles = [];
+                this.explosions = [];
+
+                Object.keys(this.cooldowns).forEach(k => this.cooldowns[k] = 0);
+
+                this.currentWave = 1;
+                this.setupWave(1);
+
+                this.hideModal();
+                this.updateUI();
+
+                this.lastTime = performance.now();
+                requestAnimationFrame((t) => this.gameLoop(t));
+            }
+
+            setupWave(waveNum) {
+                this.currentWave = waveNum;
+                
+                // 基礎怪物數量計算
+                let baseCount = 3 + waveNum * 2;
+
+                // 從第 5 關（Wave 5）開始，每一關怪物額線增加 2 至 5 隻
+                if (waveNum >= 5) {
+                    const extraZombies = Math.floor(Math.random() * 4) + 2; // 隨機 +2, 3, 4, 5 隻
+                    baseCount += extraZombies;
+                }
+
+                this.zombiesToSpawnInWave = baseCount;
+                this.zombiesSpawnedInWave = 0;
+                this.waveSpawnTimer = 0;
+                this.bossSpawnedThisWave = false;
+
+                const isBossWave = (waveNum % 5 === 0);
+                this.waveTextEl.textContent = isBossWave ? `第 ${waveNum} 波 - Boss 來襲！` : `第 ${waveNum} 波殭屍`;
+                this.maxLevelTextEl.textContent = `⭐ 當前上限: Lv.${this.getMaxAllowedLevel()}`;
+                this.updateWaveProgress();
+
+                if (isBossWave) {
+                    this.showBanner(`⚠️ 第 ${waveNum} 波 Boss 降臨！星級上限提升至 Lv.${this.getMaxAllowedLevel()}！ ⚠️`);
+                } else if (waveNum % 10 === 0 || waveNum === this.totalWaves) {
+                    this.showBanner(`⚠️ 一大波殭屍正在接近！ ⚠️`);
+                }
+            }
+
+            showBanner(msg) {
+                this.bannerText.textContent = msg;
+                this.hugeWaveBanner.classList.remove('opacity-0', 'pointer-events-none');
+                sound.play('boom');
+                setTimeout(() => {
+                    this.hugeWaveBanner.classList.add('opacity-0', 'pointer-events-none');
+                }, 2500);
+            }
+
+            gameLoop(timestamp) {
+                if (!this.gameStarted || this.isGameOver) return;
+
+                const dt = Math.min((timestamp - this.lastTime) / 1000, 0.1) * this.speedMultiplier;
+                this.lastTime = timestamp;
+
+                if (!this.isPaused) {
+                    this.update(dt);
+                    this.draw();
+                }
+
+                requestAnimationFrame((t) => this.gameLoop(t));
+            }
+
+            update(dt) {
+                Object.keys(this.cooldowns).forEach(type => {
+                    if (this.cooldowns[type] > 0) {
+                        this.cooldowns[type] = Math.max(0, this.cooldowns[type] - dt);
+                    }
+                });
+
+                this.sunNaturalTimer += dt;
+                if (this.sunNaturalTimer >= 8) {
+                    this.sunNaturalTimer = 0;
+                    const rx = Math.random() * (CANVAS_WIDTH - 120) + 60;
+                    const ry = Math.random() * (CANVAS_HEIGHT - 120) + 60;
+                    this.spawnSun(rx, ry, true);
+                }
+
+                // 更新植物狀態
+                this.plants.forEach(p => {
+                    p.timer += dt;
+
+                    if (p.sunGlowTimer > 0) {
+                        p.sunGlowTimer -= dt;
+                    }
+
+                    if (p.type === 'sunflower') {
+                        // 靜默植物升級：等級越高，產陽光間隔越短
+                        const produceInterval = Math.max(4, 24 / p.multiplier);
+                        if (p.timer >= produceInterval) {
+                            p.timer = 0;
+                            p.sunGlowTimer = 0.8;
+
+                            const sunX = (p.col + 0.5) * CELL_WIDTH;
+                            const sunY = (p.row + 0.5) * CELL_HEIGHT;
+
+                            this.spawnSun(sunX, sunY, false);
+                        }
+                    } else if (p.type === 'peashooter' || p.type === 'repeater') {
+                        const interval = p.type === 'repeater' ? 1.2 : 1.5;
+                        if (p.timer >= interval) {
+                            const hasZombie = this.zombies.some(z => {
+                                const inRow = z.isBoss ? (z.row === p.row || z.row + 1 === p.row) : (z.row === p.row);
+                                return inRow && z.x > (p.col + 0.5) * CELL_WIDTH;
+                            });
+
+                            if (hasZombie) {
+                                p.timer = 0;
+                                const baseDmg = 30 * p.multiplier;
+                                this.shootPea(p.row, p.col, baseDmg);
+                                if (p.type === 'repeater') {
+                                    setTimeout(() => this.shootPea(p.row, p.col, baseDmg), 180);
+                                }
+                            }
+                        }
+                    }
+                });
+
+                this.suns.forEach(s => {
+                    if (s.isCollecting) {
+                        s.progress += dt * 2.5;
+                        s.x += (s.targetX - s.x) * 0.2;
+                        s.y += (s.targetY - s.y) * 0.2;
+                    } else {
+                        s.timer += dt;
+                        if (s.timer >= 8) {
+                            this.collectSun(s);
+                        }
+                    }
+                });
+
+                this.suns = this.suns.filter(s => !(s.isCollecting && (Math.hypot(s.x - s.targetX, s.y - s.targetY) < 15 || s.progress >= 1)));
+
+                // 豌豆傷害計算
+                this.peas.forEach(pea => {
+                    pea.x += dt * 280;
+
+                    const hitZombie = this.zombies.find(z => {
+                        const inRow = z.isBoss ? (z.row === pea.row || z.row + 1 === pea.row) : (z.row === pea.row);
+                        return inRow && Math.abs(z.x - pea.x) < (z.isBoss ? 40 : 20);
+                    });
+
+                    if (hitZombie) {
+                        const actualDamage = Math.max(1, pea.damage - hitZombie.def);
+                        hitZombie.hp -= actualDamage;
+                        pea.destroyed = true;
+                        sound.play('hit');
+                    }
+                });
+                this.peas = this.peas.filter(p => !p.destroyed && p.x < CANVAS_WIDTH);
+
+                // 殭屍生成邏輯
+                if (this.zombiesSpawnedInWave < this.zombiesToSpawnInWave) {
+                    this.waveSpawnTimer += dt;
+                    const spawnInterval = Math.max(0.6, 4.0 - this.currentWave * 0.08);
+                    if (this.waveSpawnTimer >= spawnInterval) {
+                        this.waveSpawnTimer = 0;
+                        this.spawnZombie();
+                    }
+                }
+
+                // 殭屍移動與攻擊
+                this.zombies.forEach(z => {
+                    const zCol = Math.floor((z.x - 10) / CELL_WIDTH);
+
+                    let plantInCell = null;
+                    if (z.isBoss) {
+                        plantInCell = this.plants.find(p => (p.row === z.row || p.row === z.row + 1) && p.col === zCol);
+                    } else {
+                        plantInCell = this.plants.find(p => p.row === z.row && p.col === zCol);
+                    }
+
+                    if (plantInCell) {
+                        z.isEating = true;
+                        plantInCell.hp -= z.atk * dt;
+                        if (plantInCell.hp <= 0) {
+                            this.plants = this.plants.filter(p => p.id !== plantInCell.id);
+                        }
+                    } else {
+                        z.isEating = false;
+                        z.x -= z.speed * dt;
+                    }
+
+                    if (z.x <= 15) {
+                        this.triggerGameOver(false);
+                    }
+                });
+
+                // 死亡殭屍結算
+                this.zombies = this.zombies.filter(z => {
+                    if (z.hp <= 0) {
+                        this.score += z.score;
+                        if (this.score > this.highScore) {
+                            this.highScore = this.score;
+                            localStorage.setItem('pvz-canvas-high-score', this.highScore);
+                        }
+                        return false;
+                    }
+                    return true;
+                });
+
+                this.particles.forEach(p => {
+                    p.y += p.vy * dt;
+                    p.opacity -= dt * 1.2;
+                });
+                this.particles = this.particles.filter(p => p.opacity > 0);
+
+                this.explosions.forEach(e => {
+                    e.radius += dt * 150;
+                    e.opacity -= dt * 2;
+                });
+                this.explosions = this.explosions.filter(e => e.opacity > 0);
+
+                // 波次推進
+                if (this.zombiesSpawnedInWave >= this.zombiesToSpawnInWave && this.zombies.length === 0) {
+                    if (this.currentWave < this.totalWaves) {
+                        this.setupWave(this.currentWave + 1);
+                    } else {
+                        this.triggerGameOver(true);
+                    }
+                }
+
+                this.updateUI();
+            }
+
+            spawnSun(x, y, isNatural) {
+                this.suns.push({
+                    id: Date.now() + Math.random(),
+                    x: x,
+                    y: y,
+                    targetX: x,
+                    targetY: y,
+                    isNatural: isNatural,
+                    timer: 0,
+                    isCollecting: false,
+                    progress: 0
+                });
+            }
+
+            collectSun(sunObj) {
+                if (sunObj.isCollecting) return;
+                sunObj.isCollecting = true;
+                sunObj.targetX = 40;
+                sunObj.targetY = -30;
+
+                sound.play('sun');
+                this.sun += 25;
+
+                this.particles.push({
+                    x: sunObj.x,
+                    y: sunObj.y,
+                    text: '+25 ☀️',
+                    color: '#fbbf24',
+                    opacity: 1,
+                    vy: -40
+                });
+
+                this.sunBoxEl.classList.add('scale-125');
+                setTimeout(() => this.sunBoxEl.classList.remove('scale-125'), 200);
+
+                this.updateUI();
+            }
+
+            shootPea(row, col, damage) {
+                const startX = (col + 0.8) * CELL_WIDTH;
+                this.peas.push({
+                    id: Date.now() + Math.random(),
+                    row,
+                    x: startX,
+                    damage: damage
+                });
+                sound.play('shoot');
+            }
+
+            spawnZombie() {
+                const isBossWave = (this.currentWave % 5 === 0);
+                const waveIndex = this.currentWave - 1;
+
+                const atkMultiplier = 1 + (waveIndex * 0.15);
+                const waveDef = waveIndex * 15;
+                const speedMultiplier = 1 + (waveIndex * 0.03);
+
+                if (isBossWave && !this.bossSpawnedThisWave) {
+                    this.bossSpawnedThisWave = true;
+                    const bossRow = Math.floor(Math.random() * (ROWS - 1));
+                    const zInfo = ZOMBIE_TYPES.boss;
+
+                    this.zombies.push({
+                        id: Date.now() + Math.random(),
+                        type: 'boss',
+                        isBoss: true,
+                        row: bossRow,
+                        x: CANVAS_WIDTH - 30,
+                        hp: zInfo.hp,
+                        maxHp: zInfo.hp,
+                        def: waveDef,
+                        speed: zInfo.speed * speedMultiplier,
+                        atk: zInfo.atk * atkMultiplier,
+                        score: zInfo.score + waveIndex * 20,
+                        isEating: false
+                    });
+
+                    this.zombiesSpawnedInWave++;
+                    this.updateWaveProgress();
+                    return;
+                }
+
+                const row = Math.floor(Math.random() * ROWS);
+                const types = ['regular'];
+                if (this.currentWave >= 2) types.push('conehead');
+                if (this.currentWave >= 3) types.push('fast');
+                if (this.currentWave >= 4) types.push('buckethead');
+
+                const chosenType = types[Math.floor(Math.random() * types.length)];
+                const zInfo = ZOMBIE_TYPES[chosenType];
+
+                this.zombies.push({
+                    id: Date.now() + Math.random(),
+                    type: chosenType,
+                    isBoss: false,
+                    row,
+                    x: CANVAS_WIDTH - 20,
+                    hp: zInfo.hp,
+                    maxHp: zInfo.hp,
+                    def: waveDef,
+                    speed: zInfo.speed * speedMultiplier,
+                    atk: zInfo.atk * atkMultiplier,
+                    score: zInfo.score,
+                    isEating: false
+                });
+
+                this.zombiesSpawnedInWave++;
+                this.updateWaveProgress();
+            }
+
+            updateWaveProgress() {
+                const totalInWave = this.zombiesToSpawnInWave;
+                const remaining = totalInWave - this.zombiesSpawnedInWave + this.zombies.length;
+                this.zombieLeftEl.textContent = `剩餘殭屍: ${remaining}`;
+
+                const pct = Math.min(100, (this.zombiesSpawnedInWave / totalInWave) * 100);
+                this.waveProgressEl.style.width = `${pct}%`;
+            }
+
+            draw() {
+                this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
+                // 繪製草地棋盤
+                for (let r = 0; r < ROWS; r++) {
+                    for (let c = 0; c < COLS; c++) {
+                        const isEven = (r + c) % 2 === 0;
+                        this.ctx.fillStyle = isEven ? '#2d6a4f' : '#1b4332';
+                        this.ctx.fillRect(c * CELL_WIDTH, r * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
+
+                        this.ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+                        this.ctx.lineWidth = 1;
+                        this.ctx.strokeRect(c * CELL_WIDTH, r * CELL_HEIGHT, CELL_WIDTH, CELL_HEIGHT);
+                    }
+                }
+
+                // 防線紅線
+                this.ctx.fillStyle = 'rgba(220, 38, 38, 0.7)';
+                this.ctx.fillRect(0, 0, 8, CANVAS_HEIGHT);
+
+                // 繪製植物
+                this.plants.forEach(p => {
+                    const info = PLANT_TYPES[p.type];
+                    const cx = (p.col + 0.5) * CELL_WIDTH;
+                    const cy = (p.row + 0.5) * CELL_HEIGHT;
+
+                    this.ctx.save();
+
+                    // 植物產光特效
+                    if (p.sunGlowTimer > 0) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(cx, cy, 38, 0, Math.PI * 2);
+                        this.ctx.fillStyle = `rgba(251, 191, 36, ${p.sunGlowTimer})`;
+                        this.ctx.fill();
+                    }
+
+                    // 植物主體
+                    this.ctx.beginPath();
+                    this.ctx.arc(cx, cy, 28, 0, Math.PI * 2);
+                    this.ctx.fillStyle = info.color;
+                    this.ctx.fill();
+                    this.ctx.lineWidth = p.level > 1 ? 3.5 : 2.5;
+                    this.ctx.strokeStyle = p.level > 1 ? '#fbbf24' : '#ffffff';
+                    this.ctx.stroke();
+
+                    // 植物圖示
+                    this.ctx.fillStyle = '#ffffff';
+                    this.ctx.font = 'bold 16px Noto Sans TC';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    const iconName = p.type === 'sunflower' ? '🌻' : p.type === 'wallnut' ? '🌰' : p.type === 'cherrybomb' ? '🍒' : '🌱';
+                    this.ctx.fillText(iconName, cx, cy);
+
+                    // 繪製等級標籤
+                    if (p.level > 1) {
+                        this.ctx.fillStyle = '#f59e0b';
+                        this.ctx.font = 'black 12px Noto Sans TC';
+                        this.ctx.fillText(`⭐ Lv.${p.level}`, cx, cy - 32);
+                    }
+
+                    // 植物血條
+                    if (p.hp < p.maxHp) {
+                        const hpPct = Math.max(0, p.hp / p.maxHp);
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        this.ctx.fillRect(cx - 20, cy + 32, 40, 5);
+                        this.ctx.fillStyle = '#10b981';
+                        this.ctx.fillRect(cx - 20, cy + 32, 40 * hpPct, 5);
+                    }
+
+                    this.ctx.restore();
+                });
+
+                // 繪製殭屍
+                this.zombies.forEach(z => {
+                    const zInfo = ZOMBIE_TYPES[z.type];
+
+                    this.ctx.save();
+
+                    if (z.isBoss) {
+                        const cy = (z.row + 1) * CELL_HEIGHT;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(z.x, cy, 60, 0, Math.PI * 2);
+                        this.ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+                        this.ctx.fill();
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(z.x, cy, zInfo.radius, 0, Math.PI * 2);
+                        this.ctx.fillStyle = zInfo.color;
+                        this.ctx.fill();
+                        this.ctx.lineWidth = 4;
+                        this.ctx.strokeStyle = '#ef4444';
+                        this.ctx.stroke();
+
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.font = 'bold 28px Noto Sans TC';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText('👹', z.x, cy);
+
+                        const hpPct = Math.max(0, z.hp / z.maxHp);
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.8)';
+                        this.ctx.fillRect(z.x - 45, cy + 58, 90, 8);
+                        this.ctx.fillStyle = '#ef4444';
+                        this.ctx.fillRect(z.x - 45, cy + 58, 90 * hpPct, 8);
+                        this.ctx.strokeStyle = '#ffffff';
+                        this.ctx.lineWidth = 1;
+                        this.ctx.strokeRect(z.x - 45, cy + 58, 90, 8);
+
+                    } else {
+                        const cy = (z.row + 0.5) * CELL_HEIGHT;
+
+                        this.ctx.beginPath();
+                        this.ctx.arc(z.x, cy, zInfo.radius, 0, Math.PI * 2);
+                        this.ctx.fillStyle = zInfo.color;
+                        this.ctx.fill();
+                        this.ctx.lineWidth = 2.5;
+                        this.ctx.strokeStyle = '#1e293b';
+                        this.ctx.stroke();
+
+                        this.ctx.fillStyle = '#ffffff';
+                        this.ctx.font = 'bold 14px Noto Sans TC';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.textBaseline = 'middle';
+                        this.ctx.fillText(zInfo.hat ? '🪖' : '🧟', z.x, cy);
+
+                        const hpPct = Math.max(0, z.hp / z.maxHp);
+                        this.ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                        this.ctx.fillRect(z.x - 18, cy + 30, 36, 4);
+                        this.ctx.fillStyle = '#ef4444';
+                        this.ctx.fillRect(z.x - 18, cy + 30, 36 * hpPct, 4);
+                    }
+
+                    this.ctx.restore();
+                });
+
+                // 繪製豌豆
+                this.peas.forEach(pea => {
+                    const cy = (pea.row + 0.5) * CELL_HEIGHT;
+                    this.ctx.beginPath();
+                    this.ctx.arc(pea.x, cy, 8, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#34d399';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#059669';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.stroke();
+                });
+
+                // 繪製陽光
+                this.suns.forEach(s => {
+                    this.ctx.save();
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(s.x, s.y, 22, 0, Math.PI * 2);
+                    this.ctx.fillStyle = 'rgba(251, 191, 36, 0.4)';
+                    this.ctx.fill();
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(s.x, s.y, 16, 0, Math.PI * 2);
+                    this.ctx.fillStyle = '#f59e0b';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = '#fef08a';
+                    this.ctx.lineWidth = 3;
+                    this.ctx.stroke();
+
+                    this.ctx.fillStyle = '#78350f';
+                    this.ctx.font = 'bold 12px Noto Sans TC';
+                    this.ctx.textAlign = 'center';
+                    this.ctx.textBaseline = 'middle';
+                    this.ctx.fillText('☀️', s.x, s.y);
+
+                    this.ctx.restore();
+                });
+
+                // 繪製爆炸
+                this.explosions.forEach(e => {
+                    this.ctx.save();
+                    this.ctx.beginPath();
+                    this.ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+                    this.ctx.fillStyle = `rgba(239, 68, 68, ${e.opacity})`;
+                    this.ctx.fill();
+                    this.ctx.restore();
+                });
+
+                // 繪製文字特效
+                this.particles.forEach(p => {
+                    this.ctx.save();
+                    this.ctx.font = 'black 16px Noto Sans TC';
+                    this.ctx.fillStyle = p.color;
+                    this.ctx.globalAlpha = Math.max(0, p.opacity);
+                    this.ctx.fillText(p.text, p.x, p.y);
+                    this.ctx.restore();
+                });
+            }
+
+            updateUI() {
+                this.sunCountEl.textContent = this.sun;
+                this.scoreEl.textContent = this.score;
+                this.highScoreEl.textContent = this.highScore;
+
+                Object.keys(PLANT_TYPES).forEach(type => {
+                    const card = document.getElementById(`card-${type}`);
+                    const cdOverlay = document.getElementById(`cd-overlay-${type}`);
+                    if (!card) return;
+
+                    const info = PLANT_TYPES[type];
+                    const cd = this.cooldowns[type];
+                    const canAfford = this.sun >= info.cost;
+
+                    if (cd > 0) {
+                        cdOverlay.style.opacity = '1';
+                        cdOverlay.textContent = `${Math.ceil(cd)}s`;
+                        card.disabled = true;
+                    } else if (!canAfford) {
+                        cdOverlay.style.opacity = '0';
+                        card.disabled = true;
+                    } else {
+                        cdOverlay.style.opacity = '0';
+                        card.disabled = false;
+                    }
+
+                    if (this.selectedPlant === type) {
+                        card.classList.add('card-active');
+                    } else {
+                        card.classList.remove('card-active');
+                    }
+                });
+
+                if (this.isShovelActive) {
+                    this.btnShovel.classList.add('shovel-active');
+                } else {
+                    this.btnShovel.classList.remove('shovel-active');
+                }
+            }
+
+            triggerGameOver(isWin) {
+                this.isGameOver = true;
+                if (isWin) {
+                    sound.play('win');
+                    this.showModal('🏆 傳奇大獲全勝！', `恭喜你成功擊退全部 ${this.totalWaves} 波強大殭屍與 Boss 的入侵！\n最終得分: ${this.score}`, '再玩一次');
+                } else {
+                    sound.play('lose');
+                    this.showModal('🧠 殭屍吃掉了你的腦袋！', `防線在第 ${this.currentWave} 波被攻破...\n最終得分: ${this.score}`, '重新挑戰');
+                }
+            }
+
+            showModal(title, desc, btnText) {
+                this.modalTitle.textContent = title;
+                this.modalDesc.textContent = desc;
+                this.modalBtnText.textContent = btnText;
+                this.modal.classList.remove('hidden');
+            }
+
+            hideModal() {
+                this.modal.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const game = new PVZCanvasGame();
+        });
+    </script>
+</body>
+</html>
